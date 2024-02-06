@@ -7,14 +7,14 @@ const JwtStrategy = require("passport-jwt").Strategy;
 const ExtractJwt = require("passport-jwt").ExtractJwt;
 
 const app = express();
-const secretKey = "secretkey";
+require("dotenv").config();
 
 // Configura Passport.js con la estrategia JWT.
 passport.use(
   new JwtStrategy(
     {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      secretOrKey: secretKey,
+      secretOrKey: process.env.JWT_SECRET,
     },
     (payload, done) => {
       try {
@@ -51,21 +51,25 @@ const authenticateJWT = (req, res, next) => {
       return res.status(401).json({ message: "Token no proporcionado" });
     }
 
-    jwt.verify(token.replace(/^Bearer\s/, ""), "Stack", (err, decoded) => {
-      if (err) {
-        console.error("Error al decodificar el token:", err.message);
-        return res.status(401).json({ message: "Token no válido" });
+    jwt.verify(
+      token.replace(/^Bearer\s/, ""),
+      process.env.JWT_SECRET,
+      (err, decoded) => {
+        if (err) {
+          console.error("Error al decodificar el token:", err.message);
+          return res.status(401).json({ message: "Token no válido" });
+        }
+
+        // Imprime todo el contenido del objeto decoded
+        console.log("Token decodificado:", decoded);
+
+        // Asigna el usuario al objeto 'req'
+        user = decoded.userId;
+
+        // Continúa con el flujo de la aplicación
+        next();
       }
-
-      // Imprime todo el contenido del objeto decoded
-      console.log("Token decodificado:", decoded);
-
-      // Asigna el usuario al objeto 'req'
-      user = decoded.userId;
-
-      // Continúa con el flujo de la aplicación
-      next();
-    });
+    );
 
     if (!user) return res.status(401).json({ message: "Unauthorized" });
 
