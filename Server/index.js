@@ -5,6 +5,7 @@ const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
 const JwtStrategy = require("passport-jwt").Strategy;
 const ExtractJwt = require("passport-jwt").ExtractJwt;
+const Customer = require("./Models/Customer");
 
 const app = express();
 require("dotenv").config();
@@ -23,16 +24,16 @@ passport.use(
         }
 
         // Asegúrate de que el payload contenga la información del usuario
-        const user = payload.user; // Supongamos que el usuario está en la propiedad 'user'
+        const customer = payload.customer; // Supongamos que el usuario está en la propiedad 'customer'
 
-        if (!user) {
+        if (!customer) {
           return done(null, false, {
             message: "Usuario no encontrado en el token",
           });
         }
 
         // Pasa el usuario al callback 'done'
-        return done(null, user);
+        return done(null, customer);
       } catch (error) {
         return done(error, false, { message: "Error al decodificar el token" });
       }
@@ -42,39 +43,28 @@ passport.use(
 
 // Middleware para verificar el token en rutas protegidas.
 const authenticateJWT = (req, res, next) => {
-  passport.authenticate("jwt", { session: false }, (err, user) => {
-    if (err) return res.status(500).json({ message: "Internal Server Error" });
+  const token = req.headers.authorization;
 
-    const token = req.headers.authorization;
+  if (!token) {
+    return res.status(401).json({ message: "Token no proporcionado" });
+  }
 
-    if (!token) {
-      return res.status(401).json({ message: "Token no proporcionado" });
-    }
-
-    jwt.verify(
-      token.replace(/^Bearer\s/, ""),
-      process.env.JWT_SECRET,
-      (err, decoded) => {
-        if (err) {
-          console.error("Error al decodificar el token:", err.message);
-          return res.status(401).json({ message: "Token no válido" });
-        }
-
-        // Imprime todo el contenido del objeto decoded
-        console.log("Token decodificado:", decoded);
-
-        // Asigna el usuario al objeto 'req'
-        user = decoded.userId;
-
-        // Continúa con el flujo de la aplicación
-        next();
+  jwt.verify(
+    token.replace(/^Bearer\s/, ""),
+    process.env.JWT_SECRET,
+    (err, decoded) => {
+      if (err) {
+        console.error("Error al decodificar el token:", err.message);
+        return res.status(401).json({ message: "Token no válido" });
       }
-    );
 
-    if (!user) return res.status(401).json({ message: "Unauthorized" });
+      // Asigna el usuario decodificado al objeto 'req'
+      req.user = decoded;
 
-    next();
-  })(req, res, next);
+      // Continúa con el flujo de la aplicación
+      next();
+    }
+  );
 };
 
 app.get("/dashboard", authenticateJWT, (req, res) => {
@@ -82,7 +72,40 @@ app.get("/dashboard", authenticateJWT, (req, res) => {
   res.json({ message: "Bienvenido a tu dashboard" });
 });
 
-// Configura otras rutas y escucha en un puerto específico.
+app.get("/customer", authenticateJWT, async (req, res) => {
+  try {
+    // Verifica si el cliente ya existe en la colección
+    const existingCustomer = await Customer.findOne({
+      id_customer: req.user.id, // Usar req.user en lugar de req.customer
+    });
+
+    // Si el cliente ya existe, actualiza los datos
+    if (existingCustomer) {
+      existingCustomer.name = req.user.name; // Usar req.user en lugar de req.customer
+      existingCustomer.email = req.user.email; // Usar req.user en lugar de req.customer
+      existingCustomer.licence = req.user.licence; // Usar req.user en lugar de req.customer
+      await existingCustomer.save();
+      return res
+        .status(200)
+        .json({ message: "Datos del cliente actualizados correctamente" });
+    }
+
+    // Si el cliente no existe, añade un nuevo cliente a la colección
+    const newCustomer = new Customer({
+      id_customer: req.user.id, // Usar req.user en lugar de req.customer
+      name: req.user.name, // Usar req.user en lugar de req.customer
+      email: req.user.email, // Usar req.user en lugar de req.customer
+      licence: req.user.licence, // Usar req.user en lugar de req.customer
+    });
+    await newCustomer.save();
+    return res
+      .status(200)
+      .json({ message: "Datos del cliente almacenados correctamente" });
+  } catch (error) {
+    console.error("Error al almacenar los datos del cliente:", error);
+    return res.status(500).json({ message: "Error interno del servidor" });
+  }
+});
 
 const port = 4000;
 
