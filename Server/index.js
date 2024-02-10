@@ -5,7 +5,6 @@ const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
 const JwtStrategy = require("passport-jwt").Strategy;
 const ExtractJwt = require("passport-jwt").ExtractJwt;
-const Customer = require("./Models/Customer");
 
 const app = express();
 require("dotenv").config();
@@ -61,8 +60,19 @@ const authenticateJWT = (req, res, next) => {
       // Asigna el usuario decodificado al objeto 'req'
       req.user = decoded;
 
-      // Continúa con el flujo de la aplicación
-      next();
+      if (!req.user) {
+        return res.status(401).json({ message: "Usuario no encontrado" });
+      } else if (req.user.licence.status === "inactive") {
+        return res.status(401).json({ message: "Licencia inactiva" });
+      } else if (req.user.licence.active === false) {
+        return res.status(401).json({ message: "Sistema inactivo" });
+      } else if (req.user.licence.expiration_date < Date.now()) {
+        return res.status(401).json({ message: "Licencia expirada" });
+      } else {
+        return res.status(200).json({ message: "Token verificado" });
+        // Continúa con el flujo de la aplicación
+        next();
+      }
     }
   );
 };
@@ -74,33 +84,12 @@ app.get("/dashboard", authenticateJWT, (req, res) => {
 
 app.get("/customer", authenticateJWT, async (req, res) => {
   try {
-    // Verifica si el cliente ya existe en la colección
-    const existingCustomer = await Customer.findOne({
-      id_customer: req.user.id, // Usar req.user en lugar de req.customer
-    });
-
-    // Si el cliente ya existe, actualiza los datos
-    if (existingCustomer) {
-      existingCustomer.name = req.user.name; // Usar req.user en lugar de req.customer
-      existingCustomer.email = req.user.email; // Usar req.user en lugar de req.customer
-      existingCustomer.licence = req.user.licence; // Usar req.user en lugar de req.customer
-      await existingCustomer.save();
-      return res
-        .status(200)
-        .json({ message: "Datos del cliente actualizados correctamente" });
-    }
-
-    // Si el cliente no existe, añade un nuevo cliente a la colección
-    const newCustomer = new Customer({
-      id_customer: req.user.id, // Usar req.user en lugar de req.customer
-      name: req.user.name, // Usar req.user en lugar de req.customer
-      email: req.user.email, // Usar req.user en lugar de req.customer
-      licence: req.user.licence, // Usar req.user en lugar de req.customer
-    });
-    await newCustomer.save();
-    return res
-      .status(200)
-      .json({ message: "Datos del cliente almacenados correctamente" });
+    const customer = {
+      name: req.user.name,
+      email: req.user.email,
+      licence: req.user.licence,
+    };
+    return res.status(200).json(customer);
   } catch (error) {
     console.error("Error al almacenar los datos del cliente:", error);
     return res.status(500).json({ message: "Error interno del servidor" });
