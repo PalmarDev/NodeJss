@@ -69,7 +69,7 @@ const authenticateJWT = (req, res, next) => {
       } else if (req.user.licence.expiration_date < Date.now()) {
         return res.status(401).json({ message: "Licencia expirada" });
       } else {
-        return res.status(200).json({ message: "Token verificado" });
+        res.status(200).json({ message: "Token verificado" });
         // Continúa con el flujo de la aplicación
         next();
       }
