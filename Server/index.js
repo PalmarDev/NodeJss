@@ -9,12 +9,14 @@ const ExtractJwt = require("passport-jwt").ExtractJwt;
 const app = express();
 require("dotenv").config();
 
+const publicKey = process.env.JWT_PUBLIC_KEY;
+
 // Configura Passport.js con la estrategia JWT.
 passport.use(
   new JwtStrategy(
     {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      secretOrKey: process.env.JWT_SECRET,
+      secretOrKey: process.env.JWT_PRIVATE_KEY,
     },
     (payload, done) => {
       try {
@@ -48,9 +50,11 @@ const authenticateJWT = (req, res, next) => {
     return res.status(401).json({ message: "Token no proporcionado" });
   }
 
+  // Verifica el token utilizando la clave pública y el algoritmo RS256
   jwt.verify(
     token.replace(/^Bearer\s/, ""),
-    process.env.JWT_SECRET,
+    publicKey, // Utiliza la clave pública para verificar el token
+    { algorithms: ["RS256"] }, // Especifica el algoritmo RS256
     (err, decoded) => {
       if (err) {
         console.error("Error al decodificar el token:", err.message);
