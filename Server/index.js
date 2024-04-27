@@ -8,15 +8,22 @@ const ExtractJwt = require("passport-jwt").ExtractJwt;
 
 const app = express();
 require("dotenv").config();
+<<<<<<< Updated upstream
 
 const publicKey = process.env.JWT_PUBLIC_KEY;
+=======
+>>>>>>> Stashed changes
 
 // Configura Passport.js con la estrategia JWT.
 passport.use(
   new JwtStrategy(
     {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+<<<<<<< Updated upstream
       secretOrKey: process.env.JWT_PRIVATE_KEY,
+=======
+      secretKey: process.env.JWT_SECRET, // Asegúrate de que sea el mismo
+>>>>>>> Stashed changes
     },
     (payload, done) => {
       try {
